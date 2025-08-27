@@ -26,17 +26,21 @@ ShadowFerrum is a secure, self-contained FUSE-backed file server written in Rust
 
 ## Development Setup
 
-Since this is a Rust project, ensure Cargo is installed. The project is currently in planning phase with no implementation yet.
+Since this is a Rust project, ensure Cargo is installed. The project follows Test-Driven Development (TDD) principles.
 
-### Future Build Commands (once implemented)
+### Build Commands
 ```bash
+# Initialize workspace (Phase 1)
+cargo new --lib server
+cargo new --lib client
+
 # Build the server
 cargo build --bin server --release
 
 # Build the client  
 cargo build --bin client --release
 
-# Run tests
+# Run tests (TDD approach - write tests first!)
 cargo test
 
 # Security audit
@@ -44,7 +48,17 @@ cargo audit
 
 # Check for dependency issues
 cargo deny check
+
+# Format and lint
+cargo fmt
+cargo clippy
 ```
+
+### Testing Strategy
+- **Unit Tests**: Mock filesystem operations with `tokio::fs`
+- **Integration Tests**: Use temporary storage directories for server tests
+- **Client Tests**: Use `wiremock` to mock API server
+- **OAuth Tests**: Critical - extensive testing of oauth-provider-rs flows
 
 ## API Endpoints
 
