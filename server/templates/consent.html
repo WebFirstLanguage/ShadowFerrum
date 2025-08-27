@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorize Access - ShadowFerrum</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .consent-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .app-info {
+            background: #f7f8fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .app-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .app-id {
+            color: #666;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .permission-header {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .permissions {
+            background: #f7f8fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+        .permission-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e1e4e8;
+        }
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+        .permission-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            color: #667eea;
+        }
+        .permission-text {
+            flex: 1;
+            color: #333;
+            font-size: 14px;
+        }
+        .permission-scope {
+            color: #666;
+            font-size: 12px;
+            font-family: monospace;
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .user-info {
+            background: #fff8dc;
+            border: 1px solid #ffd700;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .user-info strong {
+            color: #333;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .approve-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .deny-btn {
+            background: #f1f3f5;
+            color: #333;
+        }
+        .deny-btn:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="consent-container">
+        <h1>Authorize Application</h1>
+        
+        <div class="app-info">
+            <div class="app-name">{{ client_name }}</div>
+            <div class="app-id">{{ client_id }}</div>
+        </div>
+        
+        <div class="user-info">
+            Signed in as <strong>{{ username }}</strong>
+        </div>
+        
+        <div class="permission-header">This application will be able to:</div>
+        
+        <div class="permissions">
+            {% for scope in scopes %}
+            <div class="permission-item">
+                <svg class="permission-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="permission-text">
+                    {% if scope == "read" %}
+                        Read your files and directories
+                    {% else if scope == "write" %}
+                        Create, modify, and delete files
+                    {% else if scope == "admin" %}
+                        Full administrative access
+                    {% else %}
+                        {{ scope }}
+                    {% endif %}
+                </div>
+                <span class="permission-scope">{{ scope }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <form method="POST" action="{{ action_url }}" id="consent-form">
+            <input type="hidden" name="client_id" value="{{ client_id }}">
+            <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+            <input type="hidden" name="response_type" value="{{ response_type }}">
+            <input type="hidden" name="scope" value="{{ scope }}">
+            {% match state %}
+            {% when Some with (state_value) %}
+            <input type="hidden" name="state" value="{{ state_value }}">
+            {% when None %}
+            {% endmatch %}
+            <input type="hidden" name="user_id" value="{{ user_id }}">
+            {% match code_challenge %}
+            {% when Some with (challenge) %}
+            <input type="hidden" name="code_challenge" value="{{ challenge }}">
+            {% when None %}
+            {% endmatch %}
+            {% match code_challenge_method %}
+            {% when Some with (method) %}
+            <input type="hidden" name="code_challenge_method" value="{{ method }}">
+            {% when None %}
+            {% endmatch %}
+            <input type="hidden" name="consent" id="consent-value" value="">
+            
+            <div class="button-group">
+                <button type="button" class="deny-btn" onclick="submitConsent('deny')">Deny</button>
+                <button type="button" class="approve-btn" onclick="submitConsent('approve')">Authorize</button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        function submitConsent(action) {
+            document.getElementById('consent-value').value = action;
+            document.getElementById('consent-form').submit();
+        }
+    </script>
+</body>
+</html>

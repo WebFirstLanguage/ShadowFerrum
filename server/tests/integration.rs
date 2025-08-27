@@ -4,19 +4,40 @@ use axum::{
 };
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use server::{api, storage::StorageEngine};
+use server::{
+    api::{self, AppState},
+    oauth::{auth::OAuthService, storage::OAuthStorage},
+    storage::StorageEngine,
+};
 use std::sync::Arc;
 use tempfile::TempDir;
 use tower::ServiceExt;
 
 async fn setup_test_app() -> (axum::Router, TempDir) {
     let temp_dir = TempDir::new().unwrap();
-    let storage = Arc::new(
-        StorageEngine::new(temp_dir.path().to_path_buf())
-            .await
-            .unwrap(),
-    );
-    let app = api::create_router(storage);
+    let data_root = temp_dir.path().to_path_buf();
+
+    let storage = Arc::new(StorageEngine::new(data_root.clone()).await.unwrap());
+    let oauth_storage = Arc::new(OAuthStorage::new(data_root.clone()).await.unwrap());
+    let oauth_service = Arc::new(OAuthService::new(oauth_storage.clone()));
+
+    // Create a test user and client for authenticated tests
+    oauth_storage
+        .create_user(
+            "testuser".to_string(),
+            "test@example.com".to_string(),
+            "password123",
+        )
+        .await
+        .unwrap();
+
+    let app_state = AppState {
+        storage,
+        oauth_storage,
+        oauth_service,
+    };
+
+    let app = api::create_router(app_state);
     (app, temp_dir)
 }
 

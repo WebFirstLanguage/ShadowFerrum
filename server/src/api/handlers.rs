@@ -5,12 +5,8 @@ use axum::{
     Json,
 };
 use bytes::Bytes;
-use std::sync::Arc;
 
-use crate::{
-    error::Result,
-    storage::{FileType, StorageEngine},
-};
+use crate::{api::AppState, error::Result, storage::FileType};
 
 pub async fn health_check() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -20,15 +16,15 @@ pub async fn health_check() -> impl IntoResponse {
 
 pub async fn get_resource(
     Path(path): Path<String>,
-    State(storage): State<Arc<StorageEngine>>,
+    State(state): State<AppState>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
 
-    let attrs = storage.get_attributes(path).await?;
+    let attrs = state.storage.get_attributes(path).await?;
 
     match attrs.file_type {
         FileType::File => {
-            let content = storage.read_file(path).await?;
+            let content = state.storage.read_file(path).await?;
             Ok((
                 [(header::CONTENT_TYPE, "application/octet-stream")],
                 content,
@@ -36,7 +32,7 @@ pub async fn get_resource(
                 .into_response())
         }
         FileType::Directory => {
-            let entries = storage.list_directory(path).await?;
+            let entries = state.storage.list_directory(path).await?;
             Ok(Json(entries).into_response())
         }
     }
@@ -44,11 +40,11 @@ pub async fn get_resource(
 
 pub async fn head_resource(
     Path(path): Path<String>,
-    State(storage): State<Arc<StorageEngine>>,
+    State(state): State<AppState>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
 
-    let attrs = storage.get_attributes(path).await?;
+    let attrs = state.storage.get_attributes(path).await?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -74,14 +70,14 @@ pub async fn head_resource(
 
 pub async fn put_file(
     Path(path): Path<String>,
-    State(storage): State<Arc<StorageEngine>>,
+    State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
 
-    let exists = storage.get_attributes(path).await.is_ok();
+    let exists = state.storage.get_attributes(path).await.is_ok();
 
-    storage.create_file(path, &body).await?;
+    state.storage.create_file(path, &body).await?;
 
     if exists {
         Ok(StatusCode::OK.into_response())
@@ -92,22 +88,22 @@ pub async fn put_file(
 
 pub async fn create_directory(
     Path(path): Path<String>,
-    State(storage): State<Arc<StorageEngine>>,
+    State(state): State<AppState>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
 
-    storage.create_directory(path).await?;
+    state.storage.create_directory(path).await?;
 
     Ok(StatusCode::CREATED.into_response())
 }
 
 pub async fn delete_resource(
     Path(path): Path<String>,
-    State(storage): State<Arc<StorageEngine>>,
+    State(state): State<AppState>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
 
-    storage.delete(path).await?;
+    state.storage.delete(path).await?;
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
