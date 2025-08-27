@@ -11,6 +11,9 @@ pub enum AppError {
     #[error("Storage error: {0}")]
     Storage(#[from] crate::storage::engine::StorageError),
 
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
+
     #[error("Internal server error")]
     Internal,
 }
@@ -33,6 +36,7 @@ impl IntoResponse for AppError {
                     _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
                 }
             }
+            AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.as_str()),
             AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
         };
 
