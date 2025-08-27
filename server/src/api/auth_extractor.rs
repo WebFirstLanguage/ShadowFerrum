@@ -1,3 +1,4 @@
+#[allow(unused_imports)] // Claims is used implicitly when accessing fields of verify_access_token's result
 use crate::oauth::auth::Claims;
 use axum::{
     async_trait,
@@ -13,15 +14,6 @@ pub struct AuthenticatedUser {
     pub scopes: Vec<String>,
 }
 
-impl From<Claims> for AuthenticatedUser {
-    fn from(claims: Claims) -> Self {
-        Self {
-            user_id: Uuid::parse_str(&claims.sub).unwrap_or_default(),
-            client_id: claims.client_id,
-            scopes: claims.scopes,
-        }
-    }
-}
 
 #[async_trait]
 impl FromRequestParts<crate::api::AppState> for AuthenticatedUser {
@@ -38,10 +30,21 @@ impl FromRequestParts<crate::api::AppState> for AuthenticatedUser {
             .and_then(|h| h.to_str().ok())
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
-        // Extract Bearer token
-        let token = auth_header
-            .strip_prefix("Bearer ")
+        // Extract Bearer token (case-insensitive with proper validation)
+        let (scheme, token) = auth_header
+            .split_once(' ')
             .ok_or(StatusCode::UNAUTHORIZED)?;
+        
+        // Validate authentication scheme (case-insensitive)
+        if !scheme.eq_ignore_ascii_case("Bearer") {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        
+        // Trim whitespace and ensure token is not empty
+        let token = token.trim();
+        if token.is_empty() {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
 
         // Verify token and get claims using the state directly
         let claims = state
@@ -49,8 +52,16 @@ impl FromRequestParts<crate::api::AppState> for AuthenticatedUser {
             .verify_access_token(token)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-        // Convert claims to AuthenticatedUser
-        Ok(AuthenticatedUser::from(claims))
+        // Explicitly parse the user ID from claims.sub
+        let user_id = Uuid::parse_str(&claims.sub)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        
+        // Construct AuthenticatedUser with validated data
+        Ok(AuthenticatedUser {
+            user_id,
+            client_id: claims.client_id,
+            scopes: claims.scopes,
+        })
     }
 }
 
@@ -243,5 +254,170 @@ mod tests {
         );
         assert_eq!(user.client_id, "test_client");
         assert_eq!(user.scopes, vec!["read", "write"]);
+    }
+
+    #[tokio::test]
+    async fn test_jwt_with_invalid_uuid() {
+        let (state, _temp, _) = setup_test_state().await;
+        let now = Utc::now();
+        
+        // Create claims with invalid UUID format
+        let claims = Claims {
+            sub: "not-a-valid-uuid".to_string(),
+            client_id: "test_client".to_string(),
+            scopes: vec!["read".to_string()],
+            exp: (now + Duration::hours(1)).timestamp(),
+            iat: now.timestamp(),
+        };
+        
+        let secret = "test_secret_for_unit_tests";
+        let token = encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(secret.as_ref()),
+        )
+        .unwrap();
+
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, format!("Bearer {}", token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
+
+        // Should fail with UNAUTHORIZED due to invalid UUID
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_authorization_header_case_insensitive() {
+        let (state, _temp, secret) = setup_test_state().await;
+        let token = create_test_token(&secret, false, false);
+
+        // Test lowercase "bearer"
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, format!("bearer {}", token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let user = AuthenticatedUser::from_request_parts(&mut parts, &state)
+            .await
+            .unwrap();
+        
+        assert_eq!(
+            user.user_id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+
+        // Test uppercase "BEARER"
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, format!("BEARER {}", token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let user = AuthenticatedUser::from_request_parts(&mut parts, &state)
+            .await
+            .unwrap();
+        
+        assert_eq!(
+            user.user_id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+
+        // Test mixed case "BeArEr"
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, format!("BeArEr {}", token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let user = AuthenticatedUser::from_request_parts(&mut parts, &state)
+            .await
+            .unwrap();
+        
+        assert_eq!(
+            user.user_id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_authorization_header_with_extra_whitespace() {
+        let (state, _temp, secret) = setup_test_state().await;
+        let token = create_test_token(&secret, false, false);
+
+        // Test with extra spaces around token
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, format!("Bearer   {}   ", token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let user = AuthenticatedUser::from_request_parts(&mut parts, &state)
+            .await
+            .unwrap();
+        
+        assert_eq!(
+            user.user_id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_authorization_header_empty_token() {
+        let (state, _temp, _) = setup_test_state().await;
+
+        // Test with empty token after Bearer
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, "Bearer ")
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
+        
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
+
+        // Test with only whitespace after Bearer
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, "Bearer    ")
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
+        
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_authorization_header_no_space() {
+        let (state, _temp, _) = setup_test_state().await;
+
+        // Test with no space between Bearer and token
+        let request = Request::builder()
+            .uri("/test")
+            .header(header::AUTHORIZATION, "BearerSomeToken")
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = request.into_parts();
+        let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
+        
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
     }
 }
