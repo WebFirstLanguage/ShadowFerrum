@@ -13,6 +13,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tower::ServiceExt;
 
+mod common;
+
 async fn setup_test_app() -> (axum::Router, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let data_root = temp_dir.path().to_path_buf();
@@ -64,6 +66,8 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_put_and_get_file() {
     let (app, _temp) = setup_test_app().await;
+    let token = common::generate_test_token();
+    let (auth_header_name, auth_header_value) = common::auth_header(&token);
 
     let content = b"Hello, World!";
 
@@ -73,6 +77,7 @@ async fn test_put_and_get_file() {
             Request::builder()
                 .method("PUT")
                 .uri("/test.txt")
+                .header(auth_header_name, &auth_header_value)
                 .body(Body::from(content.to_vec()))
                 .unwrap(),
         )
@@ -85,6 +90,7 @@ async fn test_put_and_get_file() {
         .oneshot(
             Request::builder()
                 .uri("/test.txt")
+                .header(auth_header_name, auth_header_value)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -104,12 +110,15 @@ async fn test_put_and_get_file() {
 #[tokio::test]
 async fn test_overwrite_existing_file() {
     let (app, _temp) = setup_test_app().await;
+    let token = common::generate_test_token();
+    let (auth_header_name, auth_header_value) = common::auth_header(&token);
 
     app.clone()
         .oneshot(
             Request::builder()
                 .method("PUT")
                 .uri("/test.txt")
+                .header(auth_header_name, &auth_header_value)
                 .body(Body::from(b"original".to_vec()))
                 .unwrap(),
         )
@@ -122,6 +131,7 @@ async fn test_overwrite_existing_file() {
             Request::builder()
                 .method("PUT")
                 .uri("/test.txt")
+                .header(auth_header_name, &auth_header_value)
                 .body(Body::from(b"updated".to_vec()))
                 .unwrap(),
         )
@@ -134,6 +144,7 @@ async fn test_overwrite_existing_file() {
         .oneshot(
             Request::builder()
                 .uri("/test.txt")
+                .header(auth_header_name, auth_header_value)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -147,12 +158,15 @@ async fn test_overwrite_existing_file() {
 #[tokio::test]
 async fn test_create_directory() {
     let (app, _temp) = setup_test_app().await;
+    let token = common::generate_test_token();
+    let (auth_header_name, auth_header_value) = common::auth_header(&token);
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/test_dir")
+                .header(auth_header_name, auth_header_value)
                 .body(Body::empty())
                 .unwrap(),
         )
