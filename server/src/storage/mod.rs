@@ -1,5 +1,5 @@
-pub mod types;
 pub mod engine;
+pub mod types;
 
-pub use types::{InodeAttributes, FileType, DirectoryEntry};
 pub use engine::StorageEngine;
+pub use types::{DirectoryEntry, FileType, InodeAttributes};

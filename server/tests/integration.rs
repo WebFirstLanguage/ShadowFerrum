@@ -34,7 +34,7 @@ async fn test_health_check() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_to_bytes(response.into_body()).await;
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["status"], "healthy");
@@ -43,9 +43,9 @@ async fn test_health_check() {
 #[tokio::test]
 async fn test_put_and_get_file() {
     let (app, _temp) = setup_test_app().await;
-    
+
     let content = b"Hello, World!";
-    
+
     let put_response = app
         .clone()
         .oneshot(
@@ -57,9 +57,9 @@ async fn test_put_and_get_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(put_response.status(), StatusCode::CREATED);
-    
+
     let get_response = app
         .oneshot(
             Request::builder()
@@ -69,13 +69,13 @@ async fn test_put_and_get_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(get_response.status(), StatusCode::OK);
     assert_eq!(
         get_response.headers().get("content-type").unwrap(),
         "application/octet-stream"
     );
-    
+
     let body = body_to_bytes(get_response.into_body()).await;
     assert_eq!(body.as_ref(), content);
 }
@@ -83,7 +83,7 @@ async fn test_put_and_get_file() {
 #[tokio::test]
 async fn test_overwrite_existing_file() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -94,7 +94,7 @@ async fn test_overwrite_existing_file() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .clone()
         .oneshot(
@@ -106,9 +106,9 @@ async fn test_overwrite_existing_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let get_response = app
         .oneshot(
             Request::builder()
@@ -118,7 +118,7 @@ async fn test_overwrite_existing_file() {
         )
         .await
         .unwrap();
-    
+
     let body = body_to_bytes(get_response.into_body()).await;
     assert_eq!(body.as_ref(), b"updated");
 }
@@ -126,7 +126,7 @@ async fn test_overwrite_existing_file() {
 #[tokio::test]
 async fn test_create_directory() {
     let (app, _temp) = setup_test_app().await;
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -137,14 +137,14 @@ async fn test_create_directory() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[tokio::test]
 async fn test_get_directory_listing() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -155,7 +155,7 @@ async fn test_get_directory_listing() {
         )
         .await
         .unwrap();
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -166,7 +166,7 @@ async fn test_get_directory_listing() {
         )
         .await
         .unwrap();
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -177,7 +177,7 @@ async fn test_get_directory_listing() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -187,14 +187,14 @@ async fn test_get_directory_listing() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let body = body_to_bytes(response.into_body()).await;
     let entries: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap();
-    
+
     assert_eq!(entries.len(), 2);
-    
+
     let names: Vec<String> = entries
         .iter()
         .map(|e| e["name"].as_str().unwrap().to_string())
@@ -206,9 +206,9 @@ async fn test_get_directory_listing() {
 #[tokio::test]
 async fn test_head_file() {
     let (app, _temp) = setup_test_app().await;
-    
+
     let content = b"test content";
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -219,7 +219,7 @@ async fn test_head_file() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -230,7 +230,7 @@ async fn test_head_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         response.headers().get("content-length").unwrap(),
@@ -242,7 +242,7 @@ async fn test_head_file() {
 #[tokio::test]
 async fn test_head_directory() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -253,7 +253,7 @@ async fn test_head_directory() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -264,7 +264,7 @@ async fn test_head_directory() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.headers().get("x-file-type").unwrap(), "directory");
 }
@@ -272,7 +272,7 @@ async fn test_head_directory() {
 #[tokio::test]
 async fn test_delete_file() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -283,7 +283,7 @@ async fn test_delete_file() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .clone()
         .oneshot(
@@ -295,9 +295,9 @@ async fn test_delete_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    
+
     let get_response = app
         .oneshot(
             Request::builder()
@@ -307,14 +307,14 @@ async fn test_delete_file() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn test_delete_empty_directory() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -325,7 +325,7 @@ async fn test_delete_empty_directory() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .clone()
         .oneshot(
@@ -337,9 +337,9 @@ async fn test_delete_empty_directory() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    
+
     let get_response = app
         .oneshot(
             Request::builder()
@@ -349,14 +349,14 @@ async fn test_delete_empty_directory() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn test_delete_non_empty_directory_fails() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -367,7 +367,7 @@ async fn test_delete_non_empty_directory_fails() {
         )
         .await
         .unwrap();
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -378,7 +378,7 @@ async fn test_delete_non_empty_directory_fails() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -389,14 +389,14 @@ async fn test_delete_non_empty_directory_fails() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn test_get_non_existent_resource() {
     let (app, _temp) = setup_test_app().await;
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -406,14 +406,14 @@ async fn test_get_non_existent_resource() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn test_create_duplicate_directory() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -424,7 +424,7 @@ async fn test_create_duplicate_directory() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -435,14 +435,14 @@ async fn test_create_duplicate_directory() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::CONFLICT);
 }
 
 #[tokio::test]
 async fn test_nested_file_operations() {
     let (app, _temp) = setup_test_app().await;
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -453,7 +453,7 @@ async fn test_nested_file_operations() {
         )
         .await
         .unwrap();
-    
+
     app.clone()
         .oneshot(
             Request::builder()
@@ -464,7 +464,7 @@ async fn test_nested_file_operations() {
         )
         .await
         .unwrap();
-    
+
     let content = b"nested content";
     app.clone()
         .oneshot(
@@ -476,7 +476,7 @@ async fn test_nested_file_operations() {
         )
         .await
         .unwrap();
-    
+
     let response = app
         .oneshot(
             Request::builder()
@@ -486,7 +486,7 @@ async fn test_nested_file_operations() {
         )
         .await
         .unwrap();
-    
+
     assert_eq!(response.status(), StatusCode::OK);
     let body = body_to_bytes(response.into_body()).await;
     assert_eq!(body.as_ref(), content);

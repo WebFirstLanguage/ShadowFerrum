@@ -23,9 +23,9 @@ pub async fn get_resource(
     State(storage): State<Arc<StorageEngine>>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
-    
+
     let attrs = storage.get_attributes(path).await?;
-    
+
     match attrs.file_type {
         FileType::File => {
             let content = storage.read_file(path).await?;
@@ -47,25 +47,28 @@ pub async fn head_resource(
     State(storage): State<Arc<StorageEngine>>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
-    
+
     let attrs = storage.get_attributes(path).await?;
-    
+
     let mut headers = HeaderMap::new();
-    headers.insert(header::CONTENT_LENGTH, attrs.size.to_string().parse().unwrap());
-    
+    headers.insert(
+        header::CONTENT_LENGTH,
+        attrs.size.to_string().parse().unwrap(),
+    );
+
     let file_type = match attrs.file_type {
         FileType::File => "file",
         FileType::Directory => "directory",
     };
     headers.insert("X-File-Type", file_type.parse().unwrap());
-    
+
     if let Ok(modified) = attrs.modified.duration_since(std::time::UNIX_EPOCH) {
         let _timestamp = modified.as_secs();
         if let Ok(value) = httpdate::fmt_http_date(std::time::UNIX_EPOCH + modified).parse() {
             headers.insert(header::LAST_MODIFIED, value);
         }
     }
-    
+
     Ok((StatusCode::OK, headers).into_response())
 }
 
@@ -75,11 +78,11 @@ pub async fn put_file(
     body: Bytes,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
-    
+
     let exists = storage.get_attributes(path).await.is_ok();
-    
+
     storage.create_file(path, &body).await?;
-    
+
     if exists {
         Ok(StatusCode::OK.into_response())
     } else {
@@ -92,9 +95,9 @@ pub async fn create_directory(
     State(storage): State<Arc<StorageEngine>>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
-    
+
     storage.create_directory(path).await?;
-    
+
     Ok(StatusCode::CREATED.into_response())
 }
 
@@ -103,8 +106,8 @@ pub async fn delete_resource(
     State(storage): State<Arc<StorageEngine>>,
 ) -> Result<Response> {
     let path = if path.is_empty() { "/" } else { &path };
-    
+
     storage.delete(path).await?;
-    
+
     Ok(StatusCode::NO_CONTENT.into_response())
 }
