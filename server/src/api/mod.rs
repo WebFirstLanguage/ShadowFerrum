@@ -1,11 +1,12 @@
+pub mod auth_extractor;
 pub mod handlers;
 pub mod oauth_handlers;
 pub mod state;
 
+pub use auth_extractor::AuthenticatedUser;
 pub use state::AppState;
 
 use axum::{
-    middleware,
     routing::{delete, get, head, post, put},
     Router,
 };
@@ -31,17 +32,13 @@ pub fn create_router(state: AppState) -> Router {
         )
         .with_state(state.clone());
 
-    // Create protected API routes
+    // Create protected API routes (AuthenticatedUser extractor handles auth per-handler)
     let protected_routes = Router::new()
         .route("/*path", get(handlers::get_resource))
         .route("/*path", head(handlers::head_resource))
         .route("/*path", put(handlers::put_file))
         .route("/*path", post(handlers::create_directory))
         .route("/*path", delete(handlers::delete_resource))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            oauth_handlers::auth_middleware,
-        ))
         .with_state(state.clone());
 
     // Combine routes

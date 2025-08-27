@@ -6,7 +6,11 @@ use axum::{
 };
 use bytes::Bytes;
 
-use crate::{api::AppState, error::Result, storage::FileType};
+use crate::{
+    api::{AppState, AuthenticatedUser},
+    error::Result,
+    storage::FileType,
+};
 
 pub async fn health_check() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -15,6 +19,7 @@ pub async fn health_check() -> impl IntoResponse {
 }
 
 pub async fn get_resource(
+    _user: AuthenticatedUser,
     Path(path): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response> {
@@ -39,6 +44,7 @@ pub async fn get_resource(
 }
 
 pub async fn head_resource(
+    _user: AuthenticatedUser,
     Path(path): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response> {
@@ -69,6 +75,7 @@ pub async fn head_resource(
 }
 
 pub async fn put_file(
+    _user: AuthenticatedUser,
     Path(path): Path<String>,
     State(state): State<AppState>,
     body: Bytes,
@@ -87,6 +94,7 @@ pub async fn put_file(
 }
 
 pub async fn create_directory(
+    _user: AuthenticatedUser,
     Path(path): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response> {
@@ -98,6 +106,7 @@ pub async fn create_directory(
 }
 
 pub async fn delete_resource(
+    _user: AuthenticatedUser,
     Path(path): Path<String>,
     State(state): State<AppState>,
 ) -> Result<Response> {
