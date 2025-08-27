@@ -1,0 +1,22 @@
+{
+  "inode": 1,
+  "file_type": "Directory",
+  "size": 4096,
+  "uid": 1000,
+  "gid": 1000,
+  "permissions": 493,
+  "created": {
+    "secs_since_epoch": 1756307809,
+    "nanos_since_epoch": 906699000
+  },
+  "modified": {
+    "secs_since_epoch": 1756307809,
+    "nanos_since_epoch": 906699000
+  },
+  "accessed": {
+    "secs_since_epoch": 1756307809,
+    "nanos_since_epoch": 906699000
+  },
+  "parent_inode": null,
+  "name": "/"
+}
