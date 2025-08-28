@@ -1,5 +1,4 @@
-#[allow(unused_imports)]
-// Claims is used implicitly when accessing fields of verify_access_token's result
+#[cfg(test)]
 use crate::oauth::auth::Claims;
 use axum::{
     async_trait,
@@ -430,20 +429,23 @@ mod tests {
 
         let (mut parts, _) = request.into_parts();
         let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
 
         // Test with multiple trailing parts
         let request = Request::builder()
             .uri("/test")
-            .header(header::AUTHORIZATION, format!("Bearer {} more garbage", token))
+            .header(
+                header::AUTHORIZATION,
+                format!("Bearer {} more garbage", token),
+            )
             .body(())
             .unwrap();
 
         let (mut parts, _) = request.into_parts();
         let result = AuthenticatedUser::from_request_parts(&mut parts, &state).await;
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), StatusCode::UNAUTHORIZED);
     }
