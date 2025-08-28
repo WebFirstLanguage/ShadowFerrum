@@ -596,8 +596,6 @@ async fn test_forbidden_error_response_format() {
 
 #[tokio::test]
 async fn test_various_http_methods_scope_validation() {
-    let (app, _temp) = setup_test_app().await;
-    
     // Test different combinations of scopes and methods
     let test_cases = vec![
         ("GET", vec!["read"], StatusCode::NOT_FOUND), // Should pass scope check, file not found
@@ -612,7 +610,8 @@ async fn test_various_http_methods_scope_validation() {
         ("DELETE", vec!["read"], StatusCode::FORBIDDEN), // Wrong scope
     ];
 
-    for (method, scopes, expected_status) in test_cases {
+    for (i, (method, scopes, expected_status)) in test_cases.into_iter().enumerate() {
+        let (app, _temp) = setup_test_app().await; // fresh state per case
         let token = common::generate_test_token_with_options(
             "f47ac10b-58cc-4372-a567-0e02b2c3d479",
             "test-client",
@@ -633,12 +632,13 @@ async fn test_various_http_methods_scope_validation() {
                         .body(Body::empty())
                         .unwrap(),
                 )
-                .await;
+                .await
+                .unwrap();
         }
 
         let uri = match method {
-            "POST" => "/test_directory",
-            _ => "/test_file.txt",
+            "POST" => format!("/test_directory_{}", i),
+            _ => format!("/test_file_{}.txt", i),
         };
 
         let body = match method {
@@ -651,7 +651,7 @@ async fn test_various_http_methods_scope_validation() {
             .oneshot(
                 Request::builder()
                     .method(method)
-                    .uri(uri)
+                    .uri(&uri)
                     .header(auth_header_name, auth_header_value)
                     .body(body)
                     .unwrap(),
@@ -662,10 +662,8 @@ async fn test_various_http_methods_scope_validation() {
         assert_eq!(
             response.status(),
             expected_status,
-            "Method {} with scopes {:?} should return {}",
-            method,
-            scopes,
-            expected_status
+            "Method {} uri {} with scopes {:?} should return {}",
+            method, uri, scopes, expected_status
         );
     }
 }
