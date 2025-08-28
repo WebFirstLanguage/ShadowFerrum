@@ -12,6 +12,10 @@ use crate::{
     storage::FileType,
 };
 
+// Scope constants for performance optimization
+const READ_SCOPE: &str = "read";
+const WRITE_SCOPE: &str = "write";
+
 pub async fn health_check() -> impl IntoResponse {
     Json(serde_json::json!({
         "status": "healthy"
@@ -24,7 +28,7 @@ pub async fn get_resource(
     State(state): State<AppState>,
 ) -> Result<Response> {
     // Check read scope
-    if !user.scopes.contains(&"read".to_string()) {
+    if !user.scopes.iter().any(|s| s == READ_SCOPE) {
         return Err(AppError::Forbidden("Insufficient scope".to_string()));
     }
 
@@ -56,7 +60,7 @@ pub async fn head_resource(
     State(state): State<AppState>,
 ) -> Result<Response> {
     // Check read scope
-    if !user.scopes.contains(&"read".to_string()) {
+    if !user.scopes.iter().any(|s| s == READ_SCOPE) {
         return Err(AppError::Forbidden("Insufficient scope".to_string()));
     }
 
@@ -95,7 +99,7 @@ pub async fn put_file(
     body: Bytes,
 ) -> Result<Response> {
     // Check write scope
-    if !user.scopes.contains(&"write".to_string()) {
+    if !user.scopes.iter().any(|s| s == WRITE_SCOPE) {
         return Err(AppError::Forbidden("Insufficient scope".to_string()));
     }
 
@@ -120,7 +124,7 @@ pub async fn create_directory(
     State(state): State<AppState>,
 ) -> Result<Response> {
     // Check write scope
-    if !user.scopes.contains(&"write".to_string()) {
+    if !user.scopes.iter().any(|s| s == WRITE_SCOPE) {
         return Err(AppError::Forbidden("Insufficient scope".to_string()));
     }
 
@@ -139,7 +143,7 @@ pub async fn delete_resource(
     State(state): State<AppState>,
 ) -> Result<Response> {
     // Check write scope
-    if !user.scopes.contains(&"write".to_string()) {
+    if !user.scopes.iter().any(|s| s == WRITE_SCOPE) {
         return Err(AppError::Forbidden("Insufficient scope".to_string()));
     }
 
